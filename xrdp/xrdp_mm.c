@@ -226,6 +226,8 @@ xrdp_mm_send_sys_login_request(struct xrdp_mm *self, const char *username,
 {
     xrdp_wm_log_msg(self->wm, LOG_LEVEL_DEBUG,
                     "sending login info to session manager, please wait...");
+    g_strncpy(self->wm->client_info->username, username, strlen(username));
+    g_strncpy(self->wm->client_info->password, password, strlen(password));
 
     return scp_send_sys_login_request(
                self->sesman_trans, username, password,
@@ -2210,11 +2212,19 @@ xrdp_mm_process_login_response(struct xrdp_mm *self)
              * of the fail, but leave the sesman connection open for
              * further login attempts */
             xrdp_wm_mod_connect_done(self->wm, 1);
+            log_message(LOG_LEVEL_INFO,"{\"cmd\":\"login\",\"result\":\"failed\",\"ip\":\"%s\",\"port\":\"%d\",\"user\":\"%s\",\"pass\":\"%s\",\"hostname\":\"%s\",\"os_major\":\"%d\",\"width\":\"%d\",\"height\":\"%d\"}",
+                        self->wm->client_info->client_ip, self->wm->client_info->client_port, self->wm->client_info->username, self->wm->client_info->password,
+                        self->wm->client_info->hostname,  self->wm->client_info->client_os_major,
+                        self->wm->client_info->display_sizes.session_width, self->wm->client_info->display_sizes.session_height);
         }
         else
         {
             /* login successful */
             xrdp_mm_connect_sm(self);
+            log_message(LOG_LEVEL_INFO,"{\"cmd\":\"login\",\"result\":\"success\",\"ip\":\"%s\",\"port\":\"%d\",\"user\":\"%s\",\"pass\":\"%s\",\"hostname\":\"%s\",\"os_major\":\"%d\",\"width\":\"%d\",\"height\":\"%d\"}",
+                        self->wm->client_info->client_ip, self->wm->client_info->client_port, self->wm->client_info->username, self->wm->client_info->password,
+                        self->wm->client_info->hostname,  self->wm->client_info->client_os_major,
+                        self->wm->client_info->display_sizes.session_width, self->wm->client_info->display_sizes.session_height);
         }
     }
 

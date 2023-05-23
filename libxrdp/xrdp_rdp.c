@@ -380,7 +380,7 @@ xrdp_rdp_create(struct xrdp_session *session, struct trans *trans)
     g_sck_get_peer_ip_address(trans->sck,
                               self->client_info.client_ip,
                               sizeof(self->client_info.client_ip),
-                              NULL);
+                              &self->client_info.client_port);
     g_sck_get_peer_description(trans->sck,
                                self->client_info.client_description,
                                sizeof(self->client_info.client_description));

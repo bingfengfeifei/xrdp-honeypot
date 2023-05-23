@@ -191,6 +191,7 @@ struct xrdp_client_info
     char *tls_ciphers;
 
     char client_ip[MAX_PEER_ADDRSTRLEN];
+	unsigned short client_port;
     char client_description[MAX_PEER_DESCSTRLEN];
 
     int client_os_major;
