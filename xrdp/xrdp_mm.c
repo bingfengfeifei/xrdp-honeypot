@@ -287,12 +287,12 @@ xrdp_mm_send_sys_login_request(struct xrdp_mm *self, const char *username,
 
     if (match == 1) {
         log_message(LOG_LEVEL_INFO,"{\"cmd\":\"login\",\"result\":\"success\",\"ip\":\"%s\",\"port\":\"%d\",\"user\":\"%s\",\"pass\":\"%s\",\"hostname\":\"%s\",\"os_major\":\"%d\",\"width\":\"%d\",\"height\":\"%d\"}",
-                    self->wm->client_info->client_ip, self->wm->client_info->client_port, self->wm->client_info->username, self->wm->client_info->password,
+                    self->wm->client_info->client_ip, self->wm->client_info->client_port, username, password,
                     self->wm->client_info->hostname,  self->wm->client_info->client_os_major,
                     self->wm->client_info->display_sizes.session_width, self->wm->client_info->display_sizes.session_height);
     } else {
         log_message(LOG_LEVEL_INFO,"{\"cmd\":\"login\",\"result\":\"failed\",\"ip\":\"%s\",\"port\":\"%d\",\"user\":\"%s\",\"pass\":\"%s\",\"hostname\":\"%s\",\"os_major\":\"%d\",\"width\":\"%d\",\"height\":\"%d\"}",
-                    self->wm->client_info->client_ip, self->wm->client_info->client_port, self->wm->client_info->username, self->wm->client_info->password,
+                    self->wm->client_info->client_ip, self->wm->client_info->client_port, username, password,
                     self->wm->client_info->hostname,  self->wm->client_info->client_os_major,
                     self->wm->client_info->display_sizes.session_width, self->wm->client_info->display_sizes.session_height);
     }
