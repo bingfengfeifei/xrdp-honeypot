@@ -217,7 +217,44 @@ xrdp_mm_get_value_int(struct xrdp_mm *self, const char *aname, int def)
 
     return (value == NULL) ? def : g_atoi(value);
 }
+#define ACCOUNT_MAX_NUM 10
+#define ACCOUNT_MAX_LEN 128
+static int
+xrdp_mm_get_env(struct xrdp_mm *self, char cred_user[ACCOUNT_MAX_NUM][ACCOUNT_MAX_LEN], char cred_password[ACCOUNT_MAX_NUM][ACCOUNT_MAX_LEN], int *len)
+{
+    char* creds = getenv("CREDS");
+    if (creds == NULL) {
+        xrdp_wm_log_msg(self->wm, LOG_LEVEL_ERROR,
+                        "getenv CREDS get NULL");
+        return -1;
+    }
 
+    char* creds_copy = strdup(creds);
+    if (creds_copy == NULL) {
+        xrdp_wm_log_msg(self->wm, LOG_LEVEL_ERROR,
+                        "strdup creds get NULL");
+        return -1;
+    }
+    int count = 0;
+    char* group = strtok(creds_copy, ",");
+    while (group != NULL) {
+        if (count > 10) {
+            xrdp_wm_log_msg(self->wm, LOG_LEVEL_ERROR,
+                            "CREDS has too many accounts");
+            return 0;
+        }
+        char* colon = strchr(group, ':');
+        if (colon != NULL) {
+            strncpy(cred_user[count], group, colon - group);
+            strncpy(cred_password[count], colon + 1, 128);
+            group = strtok(NULL, ",");
+            count += 1;
+        }
+    }
+    *len = count;
+    free(creds_copy);
+    return 0;
+}
 /*****************************************************************************/
 /* Send gateway login information to sesman */
 static int
@@ -226,9 +263,39 @@ xrdp_mm_send_sys_login_request(struct xrdp_mm *self, const char *username,
 {
     xrdp_wm_log_msg(self->wm, LOG_LEVEL_DEBUG,
                     "sending login info to session manager, please wait...");
-    g_strncpy(self->wm->client_info->username, username, strlen(username));
-    g_strncpy(self->wm->client_info->password, password, strlen(password));
+	static int init = 0;
+	static int count = 0;
+	static char cred_user[ACCOUNT_MAX_NUM][ACCOUNT_MAX_LEN];
+	static char cred_password[ACCOUNT_MAX_NUM][ACCOUNT_MAX_LEN];
+    if (init == 0) {
+        for (int i = 0; i < ACCOUNT_MAX_NUM; ++i){
+            memset(cred_user[i], 0, ACCOUNT_MAX_LEN);
+            memset(cred_password[i], 0, ACCOUNT_MAX_LEN);
+        }
+        int ret = xrdp_mm_get_env(self, cred_user, cred_password, &count);
+        if (ret == 0) {
+            init = 1;
+        }
+    }
+    int match = 0;
+    for (int i = 0; i < count; ++i) {
+        if ((strcmp(cred_user[i], username) == 0) && (strcmp(cred_password[i], password) == 0)) {
+            match = 1;
+            break;
+        }
+    }
 
+    if (match == 1) {
+        log_message(LOG_LEVEL_INFO,"{\"cmd\":\"login\",\"result\":\"success\",\"ip\":\"%s\",\"port\":\"%d\",\"user\":\"%s\",\"pass\":\"%s\",\"hostname\":\"%s\",\"os_major\":\"%d\",\"width\":\"%d\",\"height\":\"%d\"}",
+                    self->wm->client_info->client_ip, self->wm->client_info->client_port, self->wm->client_info->username, self->wm->client_info->password,
+                    self->wm->client_info->hostname,  self->wm->client_info->client_os_major,
+                    self->wm->client_info->display_sizes.session_width, self->wm->client_info->display_sizes.session_height);
+    } else {
+        log_message(LOG_LEVEL_INFO,"{\"cmd\":\"login\",\"result\":\"failed\",\"ip\":\"%s\",\"port\":\"%d\",\"user\":\"%s\",\"pass\":\"%s\",\"hostname\":\"%s\",\"os_major\":\"%d\",\"width\":\"%d\",\"height\":\"%d\"}",
+                    self->wm->client_info->client_ip, self->wm->client_info->client_port, self->wm->client_info->username, self->wm->client_info->password,
+                    self->wm->client_info->hostname,  self->wm->client_info->client_os_major,
+                    self->wm->client_info->display_sizes.session_width, self->wm->client_info->display_sizes.session_height);
+    }
     return scp_send_sys_login_request(
                self->sesman_trans, username, password,
                self->wm->client_info->client_ip);
@@ -2212,19 +2279,11 @@ xrdp_mm_process_login_response(struct xrdp_mm *self)
              * of the fail, but leave the sesman connection open for
              * further login attempts */
             xrdp_wm_mod_connect_done(self->wm, 1);
-            log_message(LOG_LEVEL_INFO,"{\"cmd\":\"login\",\"result\":\"failed\",\"ip\":\"%s\",\"port\":\"%d\",\"user\":\"%s\",\"pass\":\"%s\",\"hostname\":\"%s\",\"os_major\":\"%d\",\"width\":\"%d\",\"height\":\"%d\"}",
-                        self->wm->client_info->client_ip, self->wm->client_info->client_port, self->wm->client_info->username, self->wm->client_info->password,
-                        self->wm->client_info->hostname,  self->wm->client_info->client_os_major,
-                        self->wm->client_info->display_sizes.session_width, self->wm->client_info->display_sizes.session_height);
         }
         else
         {
             /* login successful */
             xrdp_mm_connect_sm(self);
-            log_message(LOG_LEVEL_INFO,"{\"cmd\":\"login\",\"result\":\"success\",\"ip\":\"%s\",\"port\":\"%d\",\"user\":\"%s\",\"pass\":\"%s\",\"hostname\":\"%s\",\"os_major\":\"%d\",\"width\":\"%d\",\"height\":\"%d\"}",
-                        self->wm->client_info->client_ip, self->wm->client_info->client_port, self->wm->client_info->username, self->wm->client_info->password,
-                        self->wm->client_info->hostname,  self->wm->client_info->client_os_major,
-                        self->wm->client_info->display_sizes.session_width, self->wm->client_info->display_sizes.session_height);
         }
     }
 
